@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Chart.js for High-Fidelity Data Visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
     <div class="glass-bg"></div>
@@ -122,6 +122,34 @@
                     <div id="debt-progress-container" class="progress-list">
                         <!-- Loaded dynamically -->
                         <p class="text-muted">No debt data available.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Actual Outflows Tracker Section -->
+            <div class="card glass-card mt-4">
+                <h3>Total Actual Outflow Summary</h3>
+                <p class="card-subtitle">Aggregating actual monthly funds distributed across spending, debt payoff, and savings.</p>
+                <div class="actuals-summary-grid mt-4">
+                    <div class="actuals-summary-card">
+                        <span class="actuals-card-title">Actual Spend</span>
+                        <h3 id="actual-outflow-spend" class="actuals-card-value">$0.00</h3>
+                        <span class="actuals-card-desc">Fixed + Discretionary</span>
+                    </div>
+                    <div class="actuals-summary-card">
+                        <span class="actuals-card-title">Actual Paid</span>
+                        <h3 id="actual-outflow-paid" class="actuals-card-value">$0.00</h3>
+                        <span class="actuals-card-desc">Debt Payments (Inflows)</span>
+                    </div>
+                    <div class="actuals-summary-card">
+                        <span class="actuals-card-title">Actual Contributed</span>
+                        <h3 id="actual-outflow-contributed" class="actuals-card-value">$0.00</h3>
+                        <span class="actuals-card-desc">Savings & Growth Goals</span>
+                    </div>
+                    <div class="actuals-summary-card highlight-outflow">
+                        <span class="actuals-card-title">Combined Outflow</span>
+                        <h2 id="actual-outflow-combined" class="actuals-card-value">$0.00</h2>
+                        <span class="actuals-card-desc">Total Distributed Funds</span>
                     </div>
                 </div>
             </div>

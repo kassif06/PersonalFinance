@@ -831,6 +831,28 @@ function adjustDebtFormFields(debtType) {
 
 function renderBudgetVsActual(summary, actuals) {
     const tbody = document.getElementById("budget-vs-actual-tbody");
+    
+    // Update the actual outflow summary widgets (handling case where actuals is missing/empty)
+    const outflowSpend = actuals ? ((actuals.fixed || 0.0) + (actuals.discretionary || 0.0)) : 0.0;
+    const outflowPaid = actuals ? (actuals.debt_payments || 0.0) : 0.0;
+    const outflowContributed = actuals ? (actuals.savings || 0.0) : 0.0;
+    const outflowCombined = outflowSpend + outflowPaid + outflowContributed;
+
+    const formatVal = val => {
+        const prefix = val < 0 ? "-" : "";
+        return prefix + "$" + Math.abs(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const elSpend = document.getElementById("actual-outflow-spend");
+    const elPaid = document.getElementById("actual-outflow-paid");
+    const elContributed = document.getElementById("actual-outflow-contributed");
+    const elCombined = document.getElementById("actual-outflow-combined");
+
+    if (elSpend) elSpend.innerText = formatVal(outflowSpend);
+    if (elPaid) elPaid.innerText = formatVal(outflowPaid);
+    if (elContributed) elContributed.innerText = formatVal(outflowContributed);
+    if (elCombined) elCombined.innerText = formatVal(outflowCombined);
+
     if (!tbody) return;
     
     if (!actuals) {
@@ -838,10 +860,7 @@ function renderBudgetVsActual(summary, actuals) {
         return;
     }
     
-    const format = val => {
-        const prefix = val < 0 ? "-" : "";
-        return prefix + "$" + Math.abs(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
+    const format = formatVal;
     
     const totalObligationsBudget = summary.fixed_spending + summary.discretionary_spending + summary.debt_obligations + summary.savings_contributions;
     const totalObligationsActual = actuals.fixed + actuals.discretionary + actuals.debt_payments + actuals.savings;

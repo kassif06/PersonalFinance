@@ -639,3 +639,67 @@ body {
 .pagination-info {
     color: var(--text-muted);
 }
+
+/* Actual Outflows Summary Grid */
+.actuals-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+    .actuals-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .actuals-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.actuals-summary-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: var(--transition);
+}
+
+.actuals-summary-card:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.actuals-card-title {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.actuals-card-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0.25rem 0;
+}
+
+.actuals-card-desc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.actuals-summary-card.highlight-outflow {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(22, 31, 48, 0.45) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.actuals-summary-card.highlight-outflow .actuals-card-value {
+    color: var(--red);
+    font-size: 1.75rem;
+}
