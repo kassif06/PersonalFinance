@@ -576,6 +576,109 @@
         </div>
     </div>
 
+    <!-- Modal: Edit Debt -->
+    <div id="edit-debt-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('edit-debt-modal')">&times;</span>
+            <h3>Edit Liabilities Account</h3>
+            <form id="edit-debt-form" onsubmit="handleEditDebtSubmit(event)">
+                <input type="hidden" name="id" id="edit-debt-id">
+                <div class="form-group">
+                    <label>Account Name</label>
+                    <input type="text" name="account_name" id="edit-debt-account-name" placeholder="e.g. Capital One Quicksilver" required>
+                </div>
+                <div class="form-group">
+                    <label>Lending Institution</label>
+                    <input type="text" name="institution" id="edit-debt-institution" placeholder="e.g. Capital One" required>
+                </div>
+                <div class="form-group">
+                    <label>Liabilities Type</label>
+                    <select name="debt_type" id="edit-debt-type-select" onchange="adjustEditDebtFormFields(this.value)" required>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="BNPL">Buy Now Pay Later (BNPL)</option>
+                        <option value="Car Loan">Car Loan</option>
+                        <option value="Personal Loan">Personal Loan</option>
+                        <option value="Mortgage">Mortgage</option>
+                    </select>
+                </div>
+                <div class="form-group" id="edit-field-credit-line">
+                    <label>Total Credit Line ($)</label>
+                    <input type="number" name="total_credit_line" id="edit-debt-credit-line" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Current Outstanding Balance ($)</label>
+                    <input type="number" name="current_balance" id="edit-debt-balance" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Minimum Monthly Payment ($)</label>
+                    <input type="number" name="monthly_payment" id="edit-debt-payment" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Annual Interest Rate (%)</label>
+                    <input type="number" name="interest_rate" id="edit-debt-rate" step="0.01" min="0">
+                </div>
+                <div class="form-group hidden" id="edit-field-remaining-payments">
+                    <label>Remaining Installment Payments (Months)</label>
+                    <input type="number" name="remaining_payments" id="edit-debt-remaining" min="1">
+                </div>
+                <div class="form-group hidden" id="edit-field-original-amount">
+                    <label>Original Loan Amount ($)</label>
+                    <input type="number" name="original_amount" id="edit-debt-original" step="0.01" min="0">
+                </div>
+                <div class="form-group hidden" id="edit-field-loan-length">
+                    <label>Total Loan Term Length (Months)</label>
+                    <input type="number" name="loan_length_months" id="edit-debt-loan-length" min="1">
+                </div>
+                <div class="form-group hidden" id="edit-field-lender-type">
+                    <label>Lender Classification</label>
+                    <select name="lender_type" id="edit-debt-lender-type">
+                        <option value="N/A">N/A</option>
+                        <option value="Institution">Institution</option>
+                        <option value="Family">Family Member</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Savings -->
+    <div id="edit-savings-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('edit-savings-modal')">&times;</span>
+            <h3>Edit Wealth Accumulation Account</h3>
+            <form id="edit-savings-form" onsubmit="handleEditSavingsSubmit(event)">
+                <input type="hidden" name="id" id="edit-savings-id">
+                <div class="form-group">
+                    <label>Account Name</label>
+                    <input type="text" name="account_name" id="edit-savings-account-name" placeholder="e.g. High Yield Savings" required>
+                </div>
+                <div class="form-group">
+                    <label>Account Classification</label>
+                    <select name="account_type" id="edit-savings-account-type" required>
+                        <option value="Standard Savings">Standard Savings</option>
+                        <option value="Roth IRA">Roth IRA</option>
+                        <option value="Brokerage">Brokerage / Investment</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Current Account Balance ($)</label>
+                    <input type="number" name="current_balance" id="edit-savings-balance" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Monthly Contribution Target ($/mo)</label>
+                    <input type="number" name="monthly_contribution" id="edit-savings-contribution" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Annual Yield APY (%)</label>
+                    <input type="number" name="annual_yield" id="edit-savings-yield" step="0.01" min="0" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: Add Fixed Spending -->
     <div id="add-fixed-modal" class="modal">
         <div class="modal-content glass-card">

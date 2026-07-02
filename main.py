@@ -314,6 +314,31 @@ def delete_debt(debt_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.put("/api/debts/{debt_id}")
+def update_debt(debt_id: int, debt: DebtAccountSchema):
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM debt_accounts WHERE id = ?", (debt_id,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="Debt account not found.")
+            cursor.execute("""
+                UPDATE debt_accounts 
+                SET account_name = ?, institution = ?, debt_type = ?, total_credit_line = ?, 
+                    current_balance = ?, monthly_payment = ?, interest_rate = ?, 
+                    remaining_payments = ?, original_amount = ?, loan_length_months = ?, lender_type = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (debt.account_name, debt.institution, debt.debt_type, debt.total_credit_line, 
+                  debt.current_balance, debt.monthly_payment, debt.interest_rate, 
+                  debt.remaining_payments, debt.original_amount, debt.loan_length_months, debt.lender_type, debt_id))
+            conn.commit()
+            return {"message": "Debt account updated successfully."}
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Debt account name already exists.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # CRUD: SAVINGS
 @app.post("/api/savings")
 def add_savings(savings: SavingsAccountSchema):
@@ -338,6 +363,29 @@ def delete_savings(savings_id: int):
             conn.execute("DELETE FROM savings_accounts WHERE id = ?", (savings_id,))
             conn.commit()
         return {"message": "Savings account deleted successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/savings/{savings_id}")
+def update_savings(savings_id: int, savings: SavingsAccountSchema):
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM savings_accounts WHERE id = ?", (savings_id,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="Savings account not found.")
+            cursor.execute("""
+                UPDATE savings_accounts 
+                SET account_name = ?, account_type = ?, monthly_contribution = ?, 
+                    current_balance = ?, annual_yield = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (savings.account_name, savings.account_type, savings.monthly_contribution, 
+                  savings.current_balance, savings.annual_yield, savings_id))
+            conn.commit()
+            return {"message": "Savings account updated successfully."}
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Savings account name already exists.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

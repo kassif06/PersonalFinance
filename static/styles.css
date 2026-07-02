@@ -585,3 +585,14 @@ body {
 /* Helpers */
 .hidden { display: none !important; }
 .text-center { text-align: center; }
+
+/* Custom Row Highlight Animation */
+@keyframes rowPulse {
+    0% { background-color: rgba(99, 102, 241, 0.4); }
+    50% { background-color: rgba(99, 102, 241, 0.15); }
+    100% { background-color: transparent; }
+}
+
+.row-highlight td {
+    animation: rowPulse 2.5s ease-out;
+}

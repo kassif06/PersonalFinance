@@ -1,7 +1,9 @@
-// Global Chart References
+// Global Chart & Cache References
 let cashFlowChart = null;
 let projectionChart = null;
 let csvParsedRows = [];
+let currentDebts = [];
+let currentSavings = [];
 
 // Initialize Dashboard on Load
 document.addEventListener("DOMContentLoaded", () => {
@@ -47,6 +49,10 @@ async function fetchDashboardData() {
         const response = await fetch("/api/dashboard");
         if (!response.ok) throw new Error("Failed to fetch dashboard summaries.");
         const data = await response.json();
+        
+        // Cache current items
+        currentDebts = data.debts;
+        currentSavings = data.savings;
         
         // 1. Populate KPIs
         updateKPIs(data.summary);
@@ -169,6 +175,9 @@ function renderDebtProgress(debts) {
         
         const item = document.createElement("div");
         item.className = "progress-item";
+        item.style.cursor = "pointer";
+        item.title = "Click to scroll to and edit this account";
+        item.onclick = () => scrollToAndEditDebt(d.id);
         item.innerHTML = `
             <div class="progress-info">
                 <span><strong>${d.account_name}</strong> (${d.debt_type})</span>
@@ -267,6 +276,7 @@ function populateDebtsTab(debts) {
     tbody.innerHTML = "";
     debts.forEach(d => {
         const tr = document.createElement("tr");
+        tr.id = `debt-row-${d.id}`;
         const rateText = d.interest_rate ? `${d.interest_rate}%` : 'N/A';
         const detailsText = d.debt_type === 'Credit Card' 
             ? `Limit: $${d.total_credit_line.toLocaleString()}` 
@@ -286,9 +296,14 @@ function populateDebtsTab(debts) {
             <td style="${colorStyle}">$${actualPay.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
             <td><small class="text-muted">${detailsText}</small></td>
             <td>
-                <button class="action-btn" onclick="deleteItem('/api/debts/${d.id}')">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn" style="color: var(--primary);" onclick="showEditDebtModal(${d.id})">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button class="action-btn" onclick="deleteItem('/api/debts/${d.id}')">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -306,6 +321,7 @@ function populateSavingsTab(savings) {
     
     savings.forEach(s => {
         const tr = document.createElement("tr");
+        tr.id = `savings-row-${s.id}`;
         const actualContrib = s.actual_contribution || 0.0;
         const targetContrib = s.monthly_contribution;
         const colorStyle = actualContrib >= targetContrib ? "color: #10b981; font-weight: 500;" : "color: #9ca3af;";
@@ -318,9 +334,14 @@ function populateSavingsTab(savings) {
             <td>$${s.current_balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
             <td>${s.annual_yield}%</td>
             <td>
-                <button class="action-btn" onclick="deleteItem('/api/savings/${s.id}')">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn" style="color: var(--primary);" onclick="showEditSavingsModal(${s.id})">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button class="action-btn" onclick="deleteItem('/api/savings/${s.id}')">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -857,4 +878,155 @@ function renderBudgetVsActual(summary, actuals) {
         `;
     });
     tbody.innerHTML = html;
+}
+
+// ----------------- EDIT MODALS ACTIONS -----------------
+function showEditDebtModal(debtId) {
+    const debt = currentDebts.find(d => d.id === debtId);
+    if (!debt) return;
+    
+    document.getElementById("edit-debt-id").value = debt.id;
+    document.getElementById("edit-debt-account-name").value = debt.account_name;
+    document.getElementById("edit-debt-institution").value = debt.institution;
+    document.getElementById("edit-debt-type-select").value = debt.debt_type;
+    
+    adjustEditDebtFormFields(debt.debt_type);
+    
+    document.getElementById("edit-debt-credit-line").value = debt.total_credit_line || "";
+    document.getElementById("edit-debt-balance").value = debt.current_balance;
+    document.getElementById("edit-debt-payment").value = debt.monthly_payment;
+    document.getElementById("edit-debt-rate").value = debt.interest_rate || "";
+    document.getElementById("edit-debt-remaining").value = debt.remaining_payments || "";
+    document.getElementById("edit-debt-original").value = debt.original_amount || "";
+    document.getElementById("edit-debt-loan-length").value = debt.loan_length_months || "";
+    document.getElementById("edit-debt-lender-type").value = debt.lender_type || "N/A";
+    
+    showModal("edit-debt-modal");
+}
+
+function adjustEditDebtFormFields(debtType) {
+    const ccField = document.getElementById("edit-field-credit-line");
+    const remField = document.getElementById("edit-field-remaining-payments");
+    const origField = document.getElementById("edit-field-original-amount");
+    const termField = document.getElementById("edit-field-loan-length");
+    const lendField = document.getElementById("edit-field-lender-type");
+
+    [ccField, remField, origField, termField, lendField].forEach(el => el.classList.add("hidden"));
+
+    if (debtType === 'Credit Card') {
+        ccField.classList.remove("hidden");
+    } else if (debtType === 'BNPL') {
+        remField.classList.remove("hidden");
+        origField.classList.remove("hidden");
+    } else if (debtType === 'Car Loan' || debtType === 'Mortgage') {
+        termField.classList.remove("hidden");
+        origField.classList.remove("hidden");
+        remField.classList.remove("hidden");
+    } else if (debtType === 'Personal Loan') {
+        lendField.classList.remove("hidden");
+        origField.classList.remove("hidden");
+    }
+}
+
+function showEditSavingsModal(savingsId) {
+    const savings = currentSavings.find(s => s.id === savingsId);
+    if (!savings) return;
+    
+    document.getElementById("edit-savings-id").value = savings.id;
+    document.getElementById("edit-savings-account-name").value = savings.account_name;
+    document.getElementById("edit-savings-account-type").value = savings.account_type;
+    document.getElementById("edit-savings-balance").value = savings.current_balance;
+    document.getElementById("edit-savings-contribution").value = savings.monthly_contribution;
+    document.getElementById("edit-savings-yield").value = savings.annual_yield;
+    
+    showModal("edit-savings-modal");
+}
+
+async function handleEditDebtSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const debtId = document.getElementById("edit-debt-id").value;
+    const formData = new FormData(form);
+    
+    const payload = {};
+    formData.forEach((value, key) => {
+        if (key === "id") return;
+        if (value === "") {
+            payload[key] = null;
+        } else if (!isNaN(value) && key !== "recipient" && key !== "frequency" && key !== "debt_type" && key !== "account_type" && key !== "category" && key !== "institution" && key !== "account_name" && key !== "lender_type") {
+            payload[key] = parseFloat(value);
+        } else {
+            payload[key] = value;
+        }
+    });
+
+    try {
+        const response = await fetch(`/api/debts/${debtId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Submission failed.");
+        }
+        
+        closeModal("edit-debt-modal");
+        fetchDashboardData();
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+}
+
+async function handleEditSavingsSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const savingsId = document.getElementById("edit-savings-id").value;
+    const formData = new FormData(form);
+    
+    const payload = {};
+    formData.forEach((value, key) => {
+        if (key === "id") return;
+        if (value === "") {
+            payload[key] = null;
+        } else if (!isNaN(value) && key !== "recipient" && key !== "frequency" && key !== "debt_type" && key !== "account_type" && key !== "category" && key !== "account_name") {
+            payload[key] = parseFloat(value);
+        } else {
+            payload[key] = value;
+        }
+    });
+
+    try {
+        const response = await fetch(`/api/savings/${savingsId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Submission failed.");
+        }
+        
+        closeModal("edit-savings-modal");
+        fetchDashboardData();
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+}
+
+function scrollToAndEditDebt(debtId) {
+    switchTab("debts");
+    setTimeout(() => {
+        const row = document.getElementById(`debt-row-${debtId}`);
+        if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add("row-highlight");
+            setTimeout(() => {
+                row.classList.remove("row-highlight");
+            }, 2500);
+            showEditDebtModal(debtId);
+        }
+    }, 150);
 }
