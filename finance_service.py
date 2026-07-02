@@ -179,6 +179,12 @@ class FinanceService:
         }
         
         with self._get_connection() as conn:
+            # Sum manual actual spent for fixed and discretionary spending
+            fixed_val = conn.execute("SELECT SUM(actual_spent) FROM fixed_spending").fetchone()[0] or 0.0
+            disc_val = conn.execute("SELECT SUM(actual_spent) FROM discretionary_spending").fetchone()[0] or 0.0
+            actuals["fixed"] = fixed_val
+            actuals["discretionary"] = disc_val
+            
             rows = conn.execute("SELECT amount, category, account_id FROM transactions").fetchall()
             
         for row in rows:
@@ -197,15 +203,9 @@ class FinanceService:
             else:
                 # Negative transaction: Spending outflow, or Savings Withdrawal
                 abs_amt = abs(amount)
-                if cat in ('Housing', 'Connectivity', 'Utilities', 'Insurances', 'Groceries'):
-                    actuals["fixed"] += abs_amt
-                elif cat in ('Family Overseas', 'Dining', 'Shopping', 'Subscriptions'):
-                    actuals["discretionary"] += abs_amt
-                elif cat == 'Savings' or (cat and 'savings' in cat.lower()):
+                if cat == 'Savings' or (cat and 'savings' in cat.lower()):
                     actuals["savings"] += abs_amt
                 elif cat == 'Debt Payment' or (cat and 'debt' in cat.lower()) or acc_id is not None:
                     actuals["debt_payments"] += abs_amt
-                else:
-                    actuals["discretionary"] += abs_amt
                     
         return {k: round(v, 2) for k, v in actuals.items()}

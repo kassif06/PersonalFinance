@@ -48,11 +48,13 @@ class FixedSpendingSchema(BaseModel):
     subcategory: str
     monthly_amount: float
     linked_debt_id: Optional[int] = None
+    actual_spent: float = 0.0
 
 class DiscretionarySpendingSchema(BaseModel):
     category: str
     subcategory: str
     monthly_amount: float
+    actual_spent: float = 0.0
 
 # Helper to get DB connection
 def get_db():
@@ -67,6 +69,19 @@ def get_db():
         if not cursor.fetchone():
             with open(SCHEMA_PATH, "r") as f:
                 conn.executescript(f.read())
+        else:
+            # Table already exists, make sure actual_spent column is present for migrations
+            cursor.execute("PRAGMA table_info(fixed_spending)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if columns and 'actual_spent' not in columns:
+                cursor.execute("ALTER TABLE fixed_spending ADD COLUMN actual_spent REAL NOT NULL DEFAULT 0.0")
+                conn.commit()
+            
+            cursor.execute("PRAGMA table_info(discretionary_spending)")
+            columns = [row[1] for row in cursor.fetchall()]
+            if columns and 'actual_spent' not in columns:
+                cursor.execute("ALTER TABLE discretionary_spending ADD COLUMN actual_spent REAL NOT NULL DEFAULT 0.0")
+                conn.commit()
     except Exception as e:
         print(f"Error ensuring database schema: {e}")
         
@@ -421,12 +436,31 @@ def add_fixed(fixed: FixedSpendingSchema):
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO fixed_spending (category, subcategory, monthly_amount, linked_debt_id)
-                VALUES (?, ?, ?, ?)
-            """, (fixed.category, fixed.subcategory, fixed.monthly_amount, fixed.linked_debt_id))
+                INSERT INTO fixed_spending (category, subcategory, monthly_amount, linked_debt_id, actual_spent)
+                VALUES (?, ?, ?, ?, ?)
+            """, (fixed.category, fixed.subcategory, fixed.monthly_amount, fixed.linked_debt_id, fixed.actual_spent))
             conn.commit()
             return {"id": cursor.lastrowid, "message": "Fixed spending item added successfully."}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/fixed/{fixed_id}")
+def update_fixed(fixed_id: int, fixed: FixedSpendingSchema):
+    try:
+        with get_db() as conn:
+            exists = conn.execute("SELECT id FROM fixed_spending WHERE id = ?", (fixed_id,)).fetchone()
+            if not exists:
+                raise HTTPException(status_code=404, detail="Fixed spending item not found.")
+            conn.execute("""
+                UPDATE fixed_spending
+                SET category = ?, subcategory = ?, monthly_amount = ?, linked_debt_id = ?, actual_spent = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (fixed.category, fixed.subcategory, fixed.monthly_amount, fixed.linked_debt_id, fixed.actual_spent, fixed_id))
+            conn.commit()
+        return {"status": "success", "message": "Fixed spending updated successfully."}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/fixed/{fixed_id}")
@@ -446,12 +480,31 @@ def add_discretionary(disc: DiscretionarySpendingSchema):
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO discretionary_spending (category, subcategory, monthly_amount)
-                VALUES (?, ?, ?)
-            """, (disc.category, disc.subcategory, disc.monthly_amount))
+                INSERT INTO discretionary_spending (category, subcategory, monthly_amount, actual_spent)
+                VALUES (?, ?, ?, ?)
+            """, (disc.category, disc.subcategory, disc.monthly_amount, disc.actual_spent))
             conn.commit()
             return {"id": cursor.lastrowid, "message": "Discretionary spending item added successfully."}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/discretionary/{disc_id}")
+def update_discretionary(disc_id: int, disc: DiscretionarySpendingSchema):
+    try:
+        with get_db() as conn:
+            exists = conn.execute("SELECT id FROM discretionary_spending WHERE id = ?", (disc_id,)).fetchone()
+            if not exists:
+                raise HTTPException(status_code=404, detail="Discretionary spending item not found.")
+            conn.execute("""
+                UPDATE discretionary_spending
+                SET category = ?, subcategory = ?, monthly_amount = ?, actual_spent = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (disc.category, disc.subcategory, disc.monthly_amount, disc.actual_spent, disc_id))
+            conn.commit()
+        return {"status": "success", "message": "Discretionary spending updated successfully."}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/discretionary/{disc_id}")

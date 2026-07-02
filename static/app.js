@@ -4,6 +4,8 @@ let projectionChart = null;
 let csvParsedRows = [];
 let currentDebts = [];
 let currentSavings = [];
+let currentFixed = [];
+let currentDiscretionary = [];
 let debtCurrentPage = 1;
 const debtRowsPerPage = 5;
 
@@ -55,6 +57,8 @@ async function fetchDashboardData() {
         // Cache current items
         currentDebts = data.debts;
         currentSavings = data.savings;
+        currentFixed = data.fixed_spending_items;
+        currentDiscretionary = data.discretionary_spending_items;
         
         // 1. Populate KPIs
         updateKPIs(data.summary);
@@ -218,18 +222,28 @@ function populateFixedSpendingTab(fixed, debts, actuals) {
     const tbody = document.getElementById("fixed-table-body");
     tbody.innerHTML = "";
     
-    // Update link-debt selector inside fixed-spending modal
+    // Update link-debt selector inside fixed-spending modals (both add and edit)
     const linkSelect = document.getElementById("fixed-link-debt-select");
     linkSelect.innerHTML = `<option value="">-- None --</option>`;
+    
+    const editLinkSelect = document.getElementById("edit-fixed-link-debt-select");
+    if (editLinkSelect) {
+        editLinkSelect.innerHTML = `<option value="">-- None --</option>`;
+    }
+    
     debts.forEach(d => {
-        linkSelect.innerHTML += `<option value="${d.id}">${d.account_name}</option>`;
+        const opt = `<option value="${d.id}">${d.account_name}</option>`;
+        linkSelect.innerHTML += opt;
+        if (editLinkSelect) {
+            editLinkSelect.innerHTML += opt;
+        }
     });
 
     fixed.forEach(item => {
         const tr = document.createElement("tr");
         const linkedText = item.linked_debt_id ? ` <span class="badge" style="background:#a855f7; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;">Linked</span>` : "";
         
-        const actualSpend = actuals && actuals.by_category ? (actuals.by_category[item.category] || 0.0) : 0.0;
+        const actualSpend = item.actual_spent || 0.0;
         const budget = item.monthly_amount;
         const colorStyle = actualSpend > budget ? "color: #ef4444; font-weight: 500;" : "color: #10b981;";
         
@@ -239,9 +253,14 @@ function populateFixedSpendingTab(fixed, debts, actuals) {
             <td>$${budget.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
             <td style="${colorStyle}">$${actualSpend.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
             <td>
-                <button class="action-btn" onclick="deleteItem('/api/fixed/${item.id}')">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn" style="color: var(--primary);" onclick="showEditFixedModal(${item.id})">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button class="action-btn" onclick="deleteItem('/api/fixed/${item.id}')">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -254,7 +273,7 @@ function populateDiscretionarySpendingTab(discretionary, actuals) {
     discretionary.forEach(item => {
         const tr = document.createElement("tr");
         
-        const actualSpend = actuals && actuals.by_category ? (actuals.by_category[item.category] || 0.0) : 0.0;
+        const actualSpend = item.actual_spent || 0.0;
         const budget = item.monthly_amount;
         const colorStyle = actualSpend > budget ? "color: #ef4444; font-weight: 500;" : "color: #10b981;";
         
@@ -264,9 +283,14 @@ function populateDiscretionarySpendingTab(discretionary, actuals) {
             <td>$${budget.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
             <td style="${colorStyle}">$${actualSpend.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
             <td>
-                <button class="action-btn" onclick="deleteItem('/api/discretionary/${item.id}')">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn" style="color: var(--primary);" onclick="showEditDiscretionaryModal(${item.id})">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button class="action-btn" onclick="deleteItem('/api/discretionary/${item.id}')">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -1089,4 +1113,87 @@ function renderDebtsPagination(totalItems, totalPages) {
 function changeDebtPage(direction) {
     debtCurrentPage += direction;
     populateDebtsTab(currentDebts);
+}
+
+// ----------------- EDIT FIXED & DISCRETIONARY SPENDING -----------------
+function showEditFixedModal(id) {
+    const item = currentFixed.find(i => i.id === id);
+    if (!item) return;
+    
+    document.getElementById("edit-fixed-id").value = item.id;
+    document.getElementById("edit-fixed-category").value = item.category;
+    document.getElementById("edit-fixed-subcategory").value = item.subcategory;
+    document.getElementById("edit-fixed-monthly-amount").value = item.monthly_amount;
+    document.getElementById("edit-fixed-actual-spent").value = item.actual_spent || 0;
+    document.getElementById("edit-fixed-link-debt-select").value = item.linked_debt_id || "";
+    
+    showModal("edit-fixed-modal");
+}
+
+function showEditDiscretionaryModal(id) {
+    const item = currentDiscretionary.find(i => i.id === id);
+    if (!item) return;
+    
+    document.getElementById("edit-discretionary-id").value = item.id;
+    document.getElementById("edit-discretionary-category").value = item.category;
+    document.getElementById("edit-discretionary-subcategory").value = item.subcategory;
+    document.getElementById("edit-discretionary-monthly-amount").value = item.monthly_amount;
+    document.getElementById("edit-discretionary-actual-spent").value = item.actual_spent || 0;
+    
+    showModal("edit-discretionary-modal");
+}
+
+async function handleEditFixedSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const id = formData.get("id");
+    
+    const payload = {
+        category: formData.get("category"),
+        subcategory: formData.get("subcategory"),
+        monthly_amount: parseFloat(formData.get("monthly_amount")),
+        actual_spent: parseFloat(formData.get("actual_spent")) || 0.0,
+        linked_debt_id: formData.get("linked_debt_id") ? parseInt(formData.get("linked_debt_id")) : null
+    };
+    
+    try {
+        const response = await fetch(`/api/fixed/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error("Failed to update fixed spending.");
+        closeModal("edit-fixed-modal");
+        fetchDashboardData();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+async function handleEditDiscretionarySubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const id = formData.get("id");
+    
+    const payload = {
+        category: formData.get("category"),
+        subcategory: formData.get("subcategory"),
+        monthly_amount: parseFloat(formData.get("monthly_amount")),
+        actual_spent: parseFloat(formData.get("actual_spent")) || 0.0
+    };
+    
+    try {
+        const response = await fetch(`/api/discretionary/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error("Failed to update discretionary spending.");
+        closeModal("edit-discretionary-modal");
+        fetchDashboardData();
+    } catch (err) {
+        alert(err.message);
+    }
 }

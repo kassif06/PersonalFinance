@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS fixed_spending (
     category TEXT CHECK(category IN ('Housing', 'Connectivity', 'Utilities', 'Insurances', 'Groceries')) NOT NULL,
     subcategory TEXT NOT NULL, -- e.g., Rent, Electric, Water, Auto Insurance, etc.
     monthly_amount REAL NOT NULL CHECK(monthly_amount >= 0.0),
+    actual_spent REAL NOT NULL DEFAULT 0.0 CHECK(actual_spent >= 0.0),
     linked_debt_id INTEGER, -- Optional link to a mortgage or car loan in debt_accounts
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS discretionary_spending (
     category TEXT CHECK(category IN ('Family Overseas', 'Dining', 'Shopping', 'Subscriptions')) NOT NULL,
     subcategory TEXT NOT NULL, -- e.g., Netflix, Gym, Restaurants
     monthly_amount REAL NOT NULL CHECK(monthly_amount >= 0.0),
+    actual_spent REAL NOT NULL DEFAULT 0.0 CHECK(actual_spent >= 0.0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

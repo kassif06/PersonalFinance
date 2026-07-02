@@ -743,6 +743,79 @@
         </div>
     </div>
 
+    <!-- Modal: Edit Fixed Spending -->
+    <div id="edit-fixed-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('edit-fixed-modal')">&times;</span>
+            <h3>Edit Fixed Spending</h3>
+            <form id="edit-fixed-form" onsubmit="handleEditFixedSubmit(event)">
+                <input type="hidden" name="id" id="edit-fixed-id">
+                <div class="form-group">
+                    <label>Category Group</label>
+                    <select name="category" id="edit-fixed-category" required>
+                        <option value="Housing">Housing</option>
+                        <option value="Connectivity">Connectivity</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Insurances">Insurances</option>
+                        <option value="Groceries">Groceries</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Subcategory Title</label>
+                    <input type="text" name="subcategory" id="edit-fixed-subcategory" placeholder="e.g. Gas, Electricity, Water" required>
+                </div>
+                <div class="form-group">
+                    <label>Monthly Budget Amount ($)</label>
+                    <input type="number" name="monthly_amount" id="edit-fixed-monthly-amount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Actual Amount Spent ($)</label>
+                    <input type="number" name="actual_spent" id="edit-fixed-actual-spent" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Link to Debt Obligation (Optional)</label>
+                    <select name="linked_debt_id" id="edit-fixed-link-debt-select">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Discretionary Spending -->
+    <div id="edit-discretionary-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('edit-discretionary-modal')">&times;</span>
+            <h3>Edit Variable Spending</h3>
+            <form id="edit-discretionary-form" onsubmit="handleEditDiscretionarySubmit(event)">
+                <input type="hidden" name="id" id="edit-discretionary-id">
+                <div class="form-group">
+                    <label>Category Group</label>
+                    <select name="category" id="edit-discretionary-category" required>
+                        <option value="Family Overseas">Family Overseas</option>
+                        <option value="Dining">Dining</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Subscriptions">Subscriptions</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Subcategory Title</label>
+                    <input type="text" name="subcategory" id="edit-discretionary-subcategory" placeholder="e.g. Netflix, Restaurants, Clothes" required>
+                </div>
+                <div class="form-group">
+                    <label>Monthly Budget Amount ($)</label>
+                    <input type="number" name="monthly_amount" id="edit-discretionary-monthly-amount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Actual Amount Spent ($)</label>
+                    <input type="number" name="actual_spent" id="edit-discretionary-actual-spent" step="0.01" min="0" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Javascript Actions File -->
     <script src="app.js"></script>
 </body>
