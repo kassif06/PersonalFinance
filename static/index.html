@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ApexFinance - Net Worth & Cash Flow Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for High-Fidelity Data Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="glass-bg"></div>
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="brand">
+            <i class="fa-solid fa-chart-line-subtraction brand-icon"></i>
+            <h2>ApexFinance</h2>
+        </div>
+        <nav class="nav-links">
+            <button class="nav-btn active" data-tab="overview">
+                <i class="fa-solid fa-table-columns"></i> Dashboard
+            </button>
+            <button class="nav-btn" data-tab="income-spend">
+                <i class="fa-solid fa-wallet"></i> Income & Spending
+            </button>
+            <button class="nav-btn" data-tab="debts">
+                <i class="fa-solid fa-credit-card"></i> Debt Tracker
+            </button>
+            <button class="nav-btn" data-tab="savings">
+                <i class="fa-solid fa-piggy-bank"></i> Savings & Growth
+            </button>
+            <button class="nav-btn" data-tab="etl">
+                <i class="fa-solid fa-file-import"></i> CSV Ingestion
+            </button>
+        </nav>
+        <div class="user-profile">
+            <div class="avatar">U</div>
+            <div class="user-info">
+                <h4>Household Account</h4>
+                <p>Personal Finance</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Top Header Bar -->
+        <header class="top-bar">
+            <div>
+                <h1 id="page-title">Financial Dashboard</h1>
+                <p class="subtitle text-muted">Real-time net worth and consolidated monthly cash flow metrics.</p>
+            </div>
+            <div class="quick-actions">
+                <button class="btn btn-primary" onclick="showModal('add-income-modal')">
+                    <i class="fa-solid fa-plus"></i> Add Income
+                </button>
+                <button class="btn btn-secondary" onclick="showModal('add-debt-modal')">
+                    <i class="fa-solid fa-plus"></i> Add Debt
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Banner Widgets -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span>Net Worth</span>
+                    <i class="fa-solid fa-building-columns icon-networth"></i>
+                </div>
+                <h2 id="kpi-net-worth" class="kpi-value">$0.00</h2>
+                <span class="kpi-desc">Total Assets - Total Liabilities</span>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span>Monthly Income</span>
+                    <i class="fa-solid fa-money-bill-trend-up icon-income"></i>
+                </div>
+                <h2 id="kpi-income" class="kpi-value">$0.00</h2>
+                <span class="kpi-desc">Normalized Inflow</span>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span>Monthly Obligations</span>
+                    <i class="fa-solid fa-hand-holding-dollar icon-spending"></i>
+                </div>
+                <h2 id="kpi-obligations" class="kpi-value">$0.00</h2>
+                <span class="kpi-desc">Min. Debts + Fixed + Savings</span>
+            </div>
+            <div class="kpi-card highlight">
+                <div class="kpi-header">
+                    <span>Unified Cash Flow</span>
+                    <i class="fa-solid fa-scale-balanced icon-cashflow"></i>
+                </div>
+                <h2 id="kpi-cash-flow" class="kpi-value">$0.00</h2>
+                <span class="kpi-desc">Net Unallocated Remaining</span>
+            </div>
+        </section>
+
+        <!-- TAB VIEWS CONTENT -->
+
+        <!-- 1. OVERVIEW TAB -->
+        <section id="view-overview" class="tab-view active">
+            <div class="grid-2col">
+                <div class="card glass-card">
+                    <h3>Cash Flow Allocation</h3>
+                    <p class="card-subtitle">Detailed breakdown of monthly budget destination streams.</p>
+                    <div class="chart-container">
+                        <canvas id="cashFlowChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card glass-card">
+                    <h3>Debt Payoff Status</h3>
+                    <p class="card-subtitle">Tracking minimum payments against outstanding liabilities.</p>
+                    <div id="debt-progress-container" class="progress-list">
+                        <!-- Loaded dynamically -->
+                        <p class="text-muted">No debt data available.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget vs. Actual Comparison Module -->
+            <div class="card glass-card mt-4">
+                <h3>Budget vs. Actual Performance</h3>
+                <p class="card-subtitle">Comparing budgeted targets against actual transacted items from imports.</p>
+                <div class="table-container mt-2">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Category Stream</th>
+                                <th>Budgeted Target</th>
+                                <th>Actual (Imported)</th>
+                                <th>Variance</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="budget-vs-actual-tbody">
+                            <tr><td colspan="5" class="text-center">Loading performance analysis...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Ingested preview log inside Dashboard -->
+            <div class="card glass-card mt-4">
+                <div class="card-header">
+                    <h3>Recent Transactions</h3>
+                    <button class="btn btn-small btn-secondary" onclick="switchTab('etl')">Manage Imports</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                <th>Auto-Category</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-tx-table-body">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No transactions found. Go to CSV Ingestion.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. INCOME & SPENDING TAB -->
+        <section id="view-income-spend" class="tab-view">
+            <div class="card glass-card mb-4">
+                <div class="card-header">
+                    <h3>Income Streams</h3>
+                    <button class="btn btn-primary btn-small" onclick="showModal('add-income-modal')">
+                        <i class="fa-solid fa-plus"></i> Add Income
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th>Recipient</th>
+                                <th>Frequency</th>
+                                <th>Amount</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="income-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid-2col">
+                <div class="card glass-card">
+                    <div class="card-header">
+                        <h3>Fixed Spending</h3>
+                        <button class="btn btn-primary btn-small" onclick="showModal('add-fixed-modal')">
+                            <i class="fa-solid fa-plus"></i> Add Fixed
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Subcategory</th>
+                                    <th>Budgeted</th>
+                                    <th>Actual Spend</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fixed-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card glass-card">
+                    <div class="card-header">
+                        <h3>Discretionary Spending</h3>
+                        <button class="btn btn-primary btn-small" onclick="showModal('add-discretionary-modal')">
+                            <i class="fa-solid fa-plus"></i> Add Item
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Subcategory</th>
+                                    <th>Budgeted</th>
+                                    <th>Actual Spend</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="discretionary-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. DEBT TRACKER TAB -->
+        <section id="view-debts" class="tab-view">
+            <div class="card glass-card mb-4">
+                <div class="card-header">
+                    <h3>Debt Accounts</h3>
+                    <button class="btn btn-primary btn-small" onclick="showModal('add-debt-modal')">
+                        <i class="fa-solid fa-plus"></i> Add Account
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Account</th>
+                                <th>Institution</th>
+                                <th>Type</th>
+                                <th>Balance</th>
+                                <th>Interest Rate</th>
+                                <th>Min Monthly</th>
+                                <th>Actual Paid</th>
+                                <th>Details</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debts-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card glass-card">
+                <h3>Payoff Acceleration Strategy</h3>
+                <p class="card-subtitle">Visual payoff projection showing impact of Extra Principal payments.</p>
+                <div class="payoff-controls mt-4 mb-4">
+                    <div class="form-group inline-group">
+                        <label>Additional Payoff Budget ($/mo):</label>
+                        <input type="number" id="payoff-extra-input" value="200" min="0" step="50" onchange="calculatePayoffTimelines()">
+                        <span class="text-muted ml-2">Extra cash directed to debts using Snowball (lowest balance first)</span>
+                    </div>
+                </div>
+                <div class="grid-2col">
+                    <div class="stat-box">
+                        <h4 class="text-muted">Standard Payoff Path</h4>
+                        <p id="standard-payoff-time" class="stat-value text-red">Calculating...</p>
+                        <span id="standard-payoff-interest" class="stat-desc">Total Interest paid: $0.00</span>
+                    </div>
+                    <div class="stat-box highlighted">
+                        <h4 class="text-muted">Accelerated Snowball Path</h4>
+                        <p id="snowball-payoff-time" class="stat-value text-emerald">Calculating...</p>
+                        <span id="snowball-payoff-interest" class="stat-desc">Total Interest paid: $0.00</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. SAVINGS & GROWTH TAB -->
+        <section id="view-savings" class="tab-view">
+            <div class="card glass-card mb-4">
+                <div class="card-header">
+                    <h3>Savings Accounts</h3>
+                    <button class="btn btn-primary btn-small" onclick="showModal('add-savings-modal')">
+                        <i class="fa-solid fa-plus"></i> Add Account
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Account</th>
+                                <th>Type</th>
+                                <th>Monthly Contribution</th>
+                                <th>Actual Contributed</th>
+                                <th>Current Balance</th>
+                                <th>Annual Yield (APY)</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="savings-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid-2col">
+                <div class="card glass-card">
+                    <h3>Compound Growth Forecaster</h3>
+                    <p class="card-subtitle">Project future balances based on current yields and monthly savings goals.</p>
+                    
+                    <div class="forecaster-controls mt-4">
+                        <div class="form-group">
+                            <label for="forecast-account-select">Select Savings Account</label>
+                            <select id="forecast-account-select" onchange="runForecast()"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Forecast Horizon: <span id="years-val">10</span> Years</label>
+                            <input type="range" id="forecast-years" min="2" max="30" value="10" step="1" oninput="document.getElementById('years-val').innerText = this.value; runForecast();">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card glass-card">
+                    <h3>Growth Curve</h3>
+                    <div class="chart-container">
+                        <canvas id="projectionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. ETL INGESTION TAB -->
+        <section id="view-etl" class="tab-view">
+            <div class="grid-2col mb-4">
+                <div class="card glass-card">
+                    <h3>Ingest Credit Card / Bank Statement</h3>
+                    <p class="card-subtitle">Upload CSV statement and align headers for safe local database loading.</p>
+                    
+                    <form id="etl-form" class="mt-4" onsubmit="handleETLSubmit(event)">
+                        <div class="form-group">
+                            <label for="etl-file">Choose CSV File</label>
+                            <input type="file" id="etl-file" accept=".csv" required onchange="parseCSVHeaders(event)">
+                        </div>
+                        
+                        <div id="column-mapping-section" style="display: none;">
+                            <h4 class="mt-4 mb-2">Align Headers</h4>
+                            <div class="form-group">
+                                <label for="map-date">Transaction Date Column</label>
+                                <select id="map-date" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="map-desc">Description Column</label>
+                                <select id="map-desc" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="map-amount">Amount Column</label>
+                                <select id="map-amount" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="map-category">Category Column (Optional)</label>
+                                <select id="map-category"></select>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-4 w-100">
+                                <i class="fa-solid fa-play"></i> Run Import Pipeline
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card glass-card">
+                    <h3>Statement Preview</h3>
+                    <p class="card-subtitle">Top parsed entries from uploaded file.</p>
+                    <div class="table-container mt-4">
+                        <table class="data-table">
+                            <thead id="csv-preview-head">
+                                <tr><th>Choose file to preview...</th></tr>
+                            </thead>
+                            <tbody id="csv-preview-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="card glass-card">
+                <div class="card-header">
+                    <h3>All Transacted Ledger Logs</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary btn-small text-red" onclick="clearTransactions()">
+                            <i class="fa-solid fa-trash-can"></i> Clear Log
+                        </button>
+                        <button class="btn btn-secondary btn-small text-red" onclick="clearAllData()">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Clear All Data
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                <th>Import Category</th>
+                                <th>Source File</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledger-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- POPUP MODALS FOR CRUD ACTIONS -->
+
+    <!-- Modal: Add Income -->
+    <div id="add-income-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('add-income-modal')">&times;</span>
+            <h3>Add New Income Inflow</h3>
+            <form onsubmit="handleCRUDSubmit(event, '/api/income', 'add-income-modal')">
+                <div class="form-group">
+                    <label>Source Name</label>
+                    <input type="text" name="source_name" placeholder="e.g. Primary Salary" required>
+                </div>
+                <div class="form-group">
+                    <label>Recipient / Earner</label>
+                    <select name="recipient" required>
+                        <option value="Self">Self</option>
+                        <option value="Partner">Wife / Partner</option>
+                        <option value="Joint">Joint</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount ($)</label>
+                    <input type="number" name="amount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Inflow Frequency</label>
+                    <select name="frequency" required>
+                        <option value="weekly">Weekly</option>
+                        <option value="bi-weekly" selected>Bi-Weekly</option>
+                        <option value="semi-monthly">Semi-Monthly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="annually">Annually</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Income Stream</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Debt -->
+    <div id="add-debt-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('add-debt-modal')">&times;</span>
+            <h3>Add Liabilities Account</h3>
+            <form onsubmit="handleCRUDSubmit(event, '/api/debts', 'add-debt-modal')">
+                <div class="form-group">
+                    <label>Account Name</label>
+                    <input type="text" name="account_name" placeholder="e.g. Capital One Quicksilver" required>
+                </div>
+                <div class="form-group">
+                    <label>Lending Institution</label>
+                    <input type="text" name="institution" placeholder="e.g. Capital One" required>
+                </div>
+                <div class="form-group">
+                    <label>Liabilities Type</label>
+                    <select name="debt_type" id="debt-type-select" onchange="adjustDebtFormFields(this.value)" required>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="BNPL">Buy Now Pay Later (BNPL)</option>
+                        <option value="Car Loan">Car Loan</option>
+                        <option value="Personal Loan">Personal Loan</option>
+                        <option value="Mortgage">Mortgage</option>
+                    </select>
+                </div>
+                <div class="form-group" id="field-credit-line">
+                    <label>Total Credit Line ($)</label>
+                    <input type="number" name="total_credit_line" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Current Outstanding Balance ($)</label>
+                    <input type="number" name="current_balance" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Minimum Monthly Payment ($)</label>
+                    <input type="number" name="monthly_payment" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Annual Interest Rate (%)</label>
+                    <input type="number" name="interest_rate" step="0.01" min="0">
+                </div>
+                <div class="form-group hidden" id="field-remaining-payments">
+                    <label>Remaining Installment Payments (Months)</label>
+                    <input type="number" name="remaining_payments" min="1">
+                </div>
+                <div class="form-group hidden" id="field-original-amount">
+                    <label>Original Loan Amount ($)</label>
+                    <input type="number" name="original_amount" step="0.01" min="0">
+                </div>
+                <div class="form-group hidden" id="field-loan-length">
+                    <label>Total Loan Term Length (Months)</label>
+                    <input type="number" name="loan_length_months" min="1">
+                </div>
+                <div class="form-group hidden" id="field-lender-type">
+                    <label>Lender Classification</label>
+                    <select name="lender_type">
+                        <option value="N/A" selected>N/A</option>
+                        <option value="Institution">Institution</option>
+                        <option value="Family">Family Member</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Liabilities Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Savings -->
+    <div id="add-savings-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('add-savings-modal')">&times;</span>
+            <h3>Add Wealth Accumulation Account</h3>
+            <form onsubmit="handleCRUDSubmit(event, '/api/savings', 'add-savings-modal')">
+                <div class="form-group">
+                    <label>Account Name</label>
+                    <input type="text" name="account_name" placeholder="e.g. High Yield Savings" required>
+                </div>
+                <div class="form-group">
+                    <label>Account Classification</label>
+                    <select name="account_type" required>
+                        <option value="Standard Savings" selected>Standard Savings</option>
+                        <option value="Roth IRA">Roth IRA</option>
+                        <option value="Brokerage">Brokerage / Investment</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Current Account Balance ($)</label>
+                    <input type="number" name="current_balance" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Monthly Contribution Target ($/mo)</label>
+                    <input type="number" name="monthly_contribution" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Annual Yield APY (%)</label>
+                    <input type="number" name="annual_yield" step="0.01" min="0" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Account Details</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Fixed Spending -->
+    <div id="add-fixed-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('add-fixed-modal')">&times;</span>
+            <h3>Add Fixed Out-of-pocket Budget</h3>
+            <form onsubmit="handleCRUDSubmit(event, '/api/fixed', 'add-fixed-modal')">
+                <div class="form-group">
+                    <label>Category Group</label>
+                    <select name="category" required>
+                        <option value="Housing">Housing</option>
+                        <option value="Connectivity">Connectivity</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Insurances">Insurances</option>
+                        <option value="Groceries">Groceries</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Subcategory Title</label>
+                    <input type="text" name="subcategory" placeholder="e.g. Gas, Electricity, Water" required>
+                </div>
+                <div class="form-group">
+                    <label>Monthly Budget Amount ($)</label>
+                    <input type="number" name="monthly_amount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Link to Debt Obligation (Optional)</label>
+                    <select name="linked_debt_id" id="fixed-link-debt-select">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Budget Line</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Discretionary Spending -->
+    <div id="add-discretionary-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('add-discretionary-modal')">&times;</span>
+            <h3>Add Variable Spending Item</h3>
+            <form onsubmit="handleCRUDSubmit(event, '/api/discretionary', 'add-discretionary-modal')">
+                <div class="form-group">
+                    <label>Category Group</label>
+                    <select name="category" required>
+                        <option value="Family Overseas">Family Overseas</option>
+                        <option value="Dining">Dining</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Subscriptions">Subscriptions</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Subcategory Title</label>
+                    <input type="text" name="subcategory" placeholder="e.g. Netflix, Restaurants, Clothes" required>
+                </div>
+                <div class="form-group">
+                    <label>Monthly Budget Amount ($)</label>
+                    <input type="number" name="monthly_amount" step="0.01" min="0" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Save Budget Line</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Javascript Actions File -->
+    <script src="app.js"></script>
+</body>
+</html>
