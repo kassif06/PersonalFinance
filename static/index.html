@@ -439,6 +439,9 @@
                 <div class="card-header">
                     <h3>All Transacted Ledger Logs</h3>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-small" onclick="showModal('add-transaction-modal')">
+                            <i class="fa-solid fa-plus"></i> Add Transaction
+                        </button>
                         <button class="btn btn-secondary btn-small text-red" onclick="clearTransactions()">
                             <i class="fa-solid fa-trash-can"></i> Clear Log
                         </button>
@@ -456,6 +459,7 @@
                                 <th>Amount</th>
                                 <th>Import Category</th>
                                 <th>Source File</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="ledger-table-body"></tbody>
@@ -840,6 +844,57 @@
                     <input type="number" name="actual_spent" id="edit-discretionary-actual-spent" step="0.01" min="0" required>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 mt-4">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Transaction -->
+    <div id="add-transaction-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('add-transaction-modal')">&times;</span>
+            <h3>Add Manual Transaction</h3>
+            <form id="add-transaction-form" onsubmit="handleManualTransactionSubmit(event)">
+                <div class="form-group">
+                    <label>Transaction Date</label>
+                    <input type="date" name="transaction_date" required>
+                </div>
+                <div class="form-group">
+                    <label>Description / Payee</label>
+                    <input type="text" name="description" placeholder="e.g. Walmart, Target, Landlord" required>
+                </div>
+                <div class="form-group">
+                    <label>Amount ($)</label>
+                    <input type="number" name="amount" step="0.01" placeholder="e.g. -50.00 for spending, 250.00 for income" required>
+                    <small class="text-muted">Use negative values (-) for expenses/outflows, positive for inflows.</small>
+                </div>
+                <div class="form-group">
+                    <label>Category (Optional)</label>
+                    <select name="category" id="manual-tx-category">
+                        <option value="Uncategorized">Uncategorized</option>
+                        <!-- Fixed -->
+                        <option value="Housing">Housing</option>
+                        <option value="Connectivity">Connectivity</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Insurances">Insurances</option>
+                        <option value="Groceries">Groceries</option>
+                        <!-- Discretionary -->
+                        <option value="Family Overseas">Family Overseas</option>
+                        <option value="Dining">Dining</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Subscriptions">Subscriptions</option>
+                        <!-- Other -->
+                        <option value="Income">Income</option>
+                        <option value="Savings">Savings</option>
+                        <option value="Debt Payment">Debt Payment</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Link to Debt Obligation (Optional)</label>
+                    <select name="account_id" id="manual-tx-link-debt-select">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Add Transaction</button>
             </form>
         </div>
     </div>

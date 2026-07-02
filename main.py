@@ -56,6 +56,13 @@ class DiscretionarySpendingSchema(BaseModel):
     monthly_amount: float
     actual_spent: float = 0.0
 
+class TransactionSchema(BaseModel):
+    transaction_date: str
+    description: str
+    amount: float
+    category: str = 'Uncategorized'
+    account_id: Optional[int] = None
+
 # Helper to get DB connection
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -299,6 +306,44 @@ def clear_transactions():
             conn.execute("DELETE FROM transactions WHERE source_file != 'system_seed'")
             conn.commit()
         return {"message": "User-imported transactions cleared successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/transactions")
+def add_transaction(tx: TransactionSchema):
+    try:
+        from datetime import datetime
+        try:
+            datetime.strptime(tx.transaction_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+            
+        with get_db() as conn:
+            cursor = conn.cursor()
+            
+            import hashlib
+            import time
+            hash_input = f"{tx.transaction_date}_{tx.description}_{tx.amount}_{time.time()}"
+            tx_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+            
+            cursor.execute("""
+                INSERT INTO transactions (transaction_date, description, amount, category, account_id, source_file, tx_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (tx.transaction_date, tx.description, tx.amount, tx.category, tx.account_id, "Manual Entry", tx_hash))
+            conn.commit()
+            return {"id": cursor.lastrowid, "message": "Transaction added successfully."}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/transactions/{tx_id}")
+def delete_transaction(tx_id: int):
+    try:
+        with get_db() as conn:
+            conn.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
+            conn.commit()
+        return {"message": "Transaction deleted successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

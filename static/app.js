@@ -231,11 +231,19 @@ function populateFixedSpendingTab(fixed, debts, actuals) {
         editLinkSelect.innerHTML = `<option value="">-- None --</option>`;
     }
     
+    const manualLinkSelect = document.getElementById("manual-tx-link-debt-select");
+    if (manualLinkSelect) {
+        manualLinkSelect.innerHTML = `<option value="">-- None --</option>`;
+    }
+    
     debts.forEach(d => {
         const opt = `<option value="${d.id}">${d.account_name}</option>`;
         linkSelect.innerHTML += opt;
         if (editLinkSelect) {
             editLinkSelect.innerHTML += opt;
+        }
+        if (manualLinkSelect) {
+            manualLinkSelect.innerHTML += opt;
         }
     });
 
@@ -759,6 +767,11 @@ async function fetchTransactions() {
                 <td>${amtText}</td>
                 <td><span class="badge" style="background: rgba(99,102,241,0.15); color:#818cf8; padding: 2px 8px; border-radius: 6px; font-size:0.75rem;">${tx.category}</span></td>
                 <td><small class="text-muted">${fileText}</small></td>
+                <td>
+                    <button class="action-btn" onclick="deleteTransaction(${tx.id})">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
             `;
             ledgerBody.appendChild(tr);
         });
@@ -1211,6 +1224,52 @@ async function handleEditDiscretionarySubmit(event) {
         });
         if (!response.ok) throw new Error("Failed to update discretionary spending.");
         closeModal("edit-discretionary-modal");
+        fetchDashboardData();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+async function handleManualTransactionSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    const payload = {
+        transaction_date: formData.get("transaction_date"),
+        description: formData.get("description"),
+        amount: parseFloat(formData.get("amount")),
+        category: formData.get("category"),
+        account_id: formData.get("account_id") ? parseInt(formData.get("account_id")) : null
+    };
+    
+    try {
+        const response = await fetch("/api/transactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.detail || "Failed to add manual transaction.");
+        }
+        form.reset();
+        closeModal("add-transaction-modal");
+        fetchTransactions();
+        fetchDashboardData();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+async function deleteTransaction(id) {
+    if (!confirm("Are you sure you want to delete this transaction?")) return;
+    try {
+        const response = await fetch(`/api/transactions/${id}`, {
+            method: "DELETE"
+        });
+        if (!response.ok) throw new Error("Failed to delete transaction.");
+        fetchTransactions();
         fetchDashboardData();
     } catch (err) {
         alert(err.message);
