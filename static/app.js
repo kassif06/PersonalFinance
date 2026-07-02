@@ -4,6 +4,8 @@ let projectionChart = null;
 let csvParsedRows = [];
 let currentDebts = [];
 let currentSavings = [];
+let debtCurrentPage = 1;
+const debtRowsPerPage = 5;
 
 // Initialize Dashboard on Load
 document.addEventListener("DOMContentLoaded", () => {
@@ -274,7 +276,23 @@ function populateDiscretionarySpendingTab(discretionary, actuals) {
 function populateDebtsTab(debts) {
     const tbody = document.getElementById("debts-table-body");
     tbody.innerHTML = "";
-    debts.forEach(d => {
+    
+    const totalItems = debts.length;
+    const totalPages = Math.ceil(totalItems / debtRowsPerPage) || 1;
+    
+    // Ensure current page is in bounds
+    if (debtCurrentPage > totalPages) {
+        debtCurrentPage = totalPages;
+    }
+    if (debtCurrentPage < 1) {
+        debtCurrentPage = 1;
+    }
+    
+    const startIndex = (debtCurrentPage - 1) * debtRowsPerPage;
+    const endIndex = Math.min(startIndex + debtRowsPerPage, totalItems);
+    const paginatedDebts = debts.slice(startIndex, endIndex);
+    
+    paginatedDebts.forEach(d => {
         const tr = document.createElement("tr");
         tr.id = `debt-row-${d.id}`;
         const rateText = d.interest_rate ? `${d.interest_rate}%` : 'N/A';
@@ -308,6 +326,8 @@ function populateDebtsTab(debts) {
         `;
         tbody.appendChild(tr);
     });
+    
+    renderDebtsPagination(totalItems, totalPages);
 }
 
 function populateSavingsTab(savings) {
@@ -1017,7 +1037,14 @@ async function handleEditSavingsSubmit(event) {
 }
 
 function scrollToAndEditDebt(debtId) {
+    const debtIndex = currentDebts.findIndex(d => d.id === debtId);
+    if (debtIndex !== -1) {
+        debtCurrentPage = Math.floor(debtIndex / debtRowsPerPage) + 1;
+    }
+    
     switchTab("debts");
+    populateDebtsTab(currentDebts);
+    
     setTimeout(() => {
         const row = document.getElementById(`debt-row-${debtId}`);
         if (row) {
@@ -1029,4 +1056,37 @@ function scrollToAndEditDebt(debtId) {
             showEditDebtModal(debtId);
         }
     }, 150);
+}
+
+function renderDebtsPagination(totalItems, totalPages) {
+    const container = document.getElementById("debts-pagination");
+    if (!container) return;
+    
+    if (totalItems <= debtRowsPerPage) {
+        container.innerHTML = "";
+        container.style.display = "none";
+        return;
+    }
+    
+    container.style.display = "flex";
+    
+    const startIndex = (debtCurrentPage - 1) * debtRowsPerPage + 1;
+    const endIndex = Math.min(debtCurrentPage * debtRowsPerPage, totalItems);
+    
+    container.innerHTML = `
+        <span class="pagination-info">Showing ${startIndex}-${endIndex} of ${totalItems} accounts</span>
+        <div class="pagination-buttons">
+            <button class="pagination-btn" id="debt-prev-btn" ${debtCurrentPage === 1 ? 'disabled' : ''} onclick="changeDebtPage(-1)">
+                <i class="fa-solid fa-chevron-left"></i> Prev
+            </button>
+            <button class="pagination-btn" id="debt-next-btn" ${debtCurrentPage === totalPages ? 'disabled' : ''} onclick="changeDebtPage(1)">
+                Next <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+    `;
+}
+
+function changeDebtPage(direction) {
+    debtCurrentPage += direction;
+    populateDebtsTab(currentDebts);
 }
