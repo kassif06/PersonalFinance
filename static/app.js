@@ -1,5 +1,6 @@
 // Global Chart & Cache References
 let cashFlowChart = null;
+let historicalChart = null;
 let projectionChart = null;
 let csvParsedRows = [];
 let currentDebts = [];
@@ -9,11 +10,324 @@ let currentDiscretionary = [];
 let debtCurrentPage = 1;
 const debtRowsPerPage = 5;
 
+// Global fetch interceptor for 401 Unauthorized
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+    const response = await originalFetch(...args);
+    if (response.status === 401) {
+        showLoginScreen();
+    }
+    return response;
+};
+
+function showLoginScreen() {
+    document.getElementById("login-container").style.display = "flex";
+    document.getElementById("app-container").style.display = "none";
+}
+
+function showAppScreen(username) {
+    document.getElementById("login-container").style.display = "none";
+    document.getElementById("app-container").style.display = "block";
+    
+    // Update profile display
+    if (username) {
+        document.getElementById("user-display-name").innerText = username;
+        document.getElementById("user-avatar").innerText = username.charAt(0).toUpperCase();
+    }
+}
+
+async function checkAuthStatus() {
+    try {
+        const response = await originalFetch("/api/auth/me");
+        if (response.ok) {
+            const data = await response.json();
+            showAppScreen(data.username);
+            fetchDashboardData();
+            fetchTransactions();
+        } else {
+            showLoginScreen();
+        }
+    } catch (e) {
+        showLoginScreen();
+    }
+}
+
+function toggleAuthForm(e) {
+    if (e) e.preventDefault();
+    const loginForm = document.getElementById("login-form");
+    const registerForm = document.getElementById("register-form");
+    const subtitle = document.getElementById("auth-subtitle");
+    const toggleMsg = document.getElementById("auth-toggle-msg");
+    const toggleLink = document.getElementById("auth-toggle-link");
+    
+    if (loginForm.classList.contains("hidden")) {
+        loginForm.classList.remove("hidden");
+        registerForm.classList.add("hidden");
+        subtitle.innerText = "Log in to manage your personal finances securely";
+        toggleMsg.innerText = "Don't have an account?";
+        toggleLink.innerText = "Register now";
+    } else {
+        loginForm.classList.add("hidden");
+        registerForm.classList.remove("hidden");
+        subtitle.innerText = "Create a new account to get started";
+        toggleMsg.innerText = "Already have an account?";
+        toggleLink.innerText = "Log in";
+    }
+}
+
+async function handleAuthSubmit(event, action) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const payload = {};
+    formData.forEach((value, key) => {
+        payload[key] = value;
+    });
+    
+    try {
+        const endpoint = action === 'login' ? '/api/auth/login' : '/api/auth/register';
+        const response = await originalFetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Authentication failed.");
+        }
+        
+        const data = await response.json();
+        if (action === 'login') {
+            showAppScreen(data.username);
+            fetchDashboardData();
+            fetchTransactions();
+            form.reset();
+        } else {
+            alert(data.message);
+            toggleAuthForm();
+            document.getElementById("login-username").value = payload.username;
+            document.getElementById("login-password").value = "";
+        }
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+async function handleLogout() {
+    try {
+        await originalFetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+        console.error("Logout error:", e);
+    }
+    showLoginScreen();
+}
+
+async function fetchMonths() {
+    try {
+        const response = await fetch("/api/months");
+        if (!response.ok) throw new Error("Failed to fetch available months.");
+        const months = await response.json();
+        
+        const select = document.getElementById("dashboard-month-select");
+        const currentVal = select.value;
+        select.innerHTML = `<option value="">All Time</option>`;
+        
+        months.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m;
+            opt.innerText = formatMonthName(m);
+            select.appendChild(opt);
+        });
+        
+        if (months.includes(currentVal)) {
+            select.value = currentVal;
+        }
+    } catch (e) {
+        console.error("Error fetching months:", e);
+    }
+}
+
+function formatMonthName(mStr) {
+    const [y, m] = mStr.split("-");
+    const date = new Date(parseInt(y), parseInt(m) - 1, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function onMonthChange() {
+    fetchDashboardData();
+    fetchTransactions();
+}
+
+async function fetchHistoricalReports() {
+    try {
+        const response = await fetch("/api/reports/historical");
+        if (!response.ok) throw new Error("Failed to fetch historical reports.");
+        const data = await response.json();
+        
+        const ctx = document.getElementById('historicalChart').getContext('2d');
+        if (historicalChart) historicalChart.destroy();
+        
+        const labels = data.map(r => formatMonthName(r.month));
+        const incomeData = data.map(r => r.income);
+        const spendingData = data.map(r => r.spending);
+        const savingsData = data.map(r => r.savings);
+        const netFlowData = data.map(r => r.net_cash_flow);
+        
+        historicalChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        backgroundColor: '#10b981',
+                        borderColor: '#10b981',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Spending',
+                        data: spendingData,
+                        backgroundColor: '#ef4444',
+                        borderColor: '#ef4444',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Savings',
+                        data: savingsData,
+                        backgroundColor: '#6366f1',
+                        borderColor: '#6366f1',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Net Surplus',
+                        data: netFlowData,
+                        type: 'line',
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#f3f4f6', font: { family: 'Outfit' } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#f3f4f6', font: { family: 'Outfit' } }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#f3f4f6',
+                            font: { family: 'Outfit', size: 12 }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error("Historical Report Error:", e);
+    }
+}
+
+async function showProcessMonthModal() {
+    const monthSelect = document.getElementById("dashboard-month-select");
+    const selectedMonth = monthSelect ? monthSelect.value : "";
+    if (!selectedMonth) {
+        alert("Please select a specific month from the 'View Month' dropdown first.");
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/dashboard?month=${selectedMonth}`);
+        if (!response.ok) throw new Error("Failed to load month metrics.");
+        const data = await response.json();
+        
+        const income = data.actuals.income;
+        const totalOutflows = data.actuals.fixed + data.actuals.discretionary + data.actuals.savings + data.actuals.debt_payments;
+        const surplus = Math.max(0, income - totalOutflows);
+        
+        document.getElementById("process-month-name").value = selectedMonth;
+        document.getElementById("process-month-surplus").value = surplus.toFixed(2);
+        
+        const select = document.getElementById("process-month-savings-select");
+        select.innerHTML = "";
+        
+        if (data.savings.length === 0) {
+            select.innerHTML = `<option value="">-- No Savings Account Found --</option>`;
+        } else {
+            data.savings.forEach(acc => {
+                const opt = document.createElement("option");
+                opt.value = acc.id;
+                opt.innerText = `${acc.account_name} (Bal: $${acc.current_balance.toFixed(2)})`;
+                select.appendChild(opt);
+            });
+        }
+        
+        showModal('process-month-modal');
+    } catch (e) {
+        alert("Error loading rollover data: " + e.message);
+    }
+}
+
+async function handleProcessMonthSubmit(event) {
+    event.preventDefault();
+    const month = document.getElementById("process-month-name").value;
+    const surplus = parseFloat(document.getElementById("process-month-surplus").value);
+    const savingsId = parseInt(document.getElementById("process-month-savings-select").value);
+    
+    if (!savingsId) {
+        alert("Please select a destination savings account.");
+        return;
+    }
+    
+    if (surplus <= 0) {
+        alert("There is no positive net cash flow surplus to roll over for this month.");
+        return;
+    }
+    
+    try {
+        const response = await fetch("/api/months/process", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                month: month,
+                savings_account_id: savingsId,
+                amount: surplus
+            })
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Rollover failed.");
+        }
+        
+        const data = await response.json();
+        alert(data.message);
+        closeModal('process-month-modal');
+        
+        fetchDashboardData();
+        fetchTransactions();
+    } catch (e) {
+        alert("Rollover Error: " + e.message);
+    }
+}
+
 // Initialize Dashboard on Load
 document.addEventListener("DOMContentLoaded", () => {
     initNavigation();
-    fetchDashboardData();
-    fetchTransactions();
+    checkAuthStatus();
 });
 
 // ----------------- NAVIGATION -----------------
@@ -50,7 +364,11 @@ function switchTab(tabId) {
 // ----------------- DATA FETCHING & POPULATION -----------------
 async function fetchDashboardData() {
     try {
-        const response = await fetch("/api/dashboard");
+        const monthSelect = document.getElementById("dashboard-month-select");
+        const selectedMonth = monthSelect ? monthSelect.value : "";
+        const url = selectedMonth ? `/api/dashboard?month=${selectedMonth}` : "/api/dashboard";
+        
+        const response = await fetch(url);
         if (!response.ok) throw new Error("Failed to fetch dashboard summaries.");
         const data = await response.json();
         
@@ -78,8 +396,17 @@ async function fetchDashboardData() {
         // 4. Run Payoff Calculations
         calculatePayoffTimelines(data.debts);
 
+        // 5. Populate Months & Historical Reports (Only if not currently processing to avoid loop)
+        if (!window._isRefreshingMonths) {
+            window._isRefreshingMonths = true;
+            await fetchMonths();
+            await fetchHistoricalReports();
+            window._isRefreshingMonths = false;
+        }
+
     } catch (error) {
         console.error("Dashboard Loading Error:", error);
+        window._isRefreshingMonths = false;
     }
 }
 
@@ -721,7 +1048,11 @@ async function handleETLSubmit(event) {
 
 async function fetchTransactions() {
     try {
-        const response = await fetch("/api/transactions");
+        const monthSelect = document.getElementById("dashboard-month-select");
+        const selectedMonth = monthSelect ? monthSelect.value : "";
+        const url = selectedMonth ? `/api/transactions?month=${selectedMonth}` : "/api/transactions";
+        
+        const response = await fetch(url);
         if (!response.ok) throw new Error("Failed to fetch ledger logs.");
         const transactions = await response.json();
         

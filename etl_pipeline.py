@@ -44,7 +44,7 @@ class TransactionETL:
             return 'Shopping'
         return 'Uncategorized'
 
-    def import_csv(self, file_path: str, column_mapping: Dict[str, str]) -> Tuple[int, int]:
+    def import_csv(self, file_path: str, column_mapping: Dict[str, str], user_id: int) -> Tuple[int, int]:
         """
         Parses the CSV, cleans records, hashes them, and inserts them.
         column_mapping must map CSV header keys to keys: 'date', 'description', 'amount'.
@@ -84,13 +84,13 @@ class TransactionETL:
                         
                         # Load Phase (Insert Ignore or UPSERT via unique tx_hash constraint)
                         cursor.execute("""
-                            INSERT INTO transactions (transaction_date, description, amount, category, tx_hash, source_file)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (date_str, description, amount, category, tx_hash, file_path))
+                            INSERT INTO transactions (user_id, transaction_date, description, amount, category, tx_hash, source_file)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (user_id, date_str, description, amount, category, tx_hash, file_path))
                         
                         # Auto-link and adjust account balance if transaction description matches an account
                         tx_id = cursor.lastrowid
-                        self.auto_link_and_update_balance(cursor, tx_id, description, amount)
+                        self.auto_link_and_update_balance(cursor, user_id, tx_id, description, amount)
                         
                         inserted_count += 1
                     except sqlite3.IntegrityError:
@@ -105,7 +105,7 @@ class TransactionETL:
                 
         return inserted_count, skipped_count
 
-    def auto_link_and_update_balance(self, cursor: sqlite3.Cursor, tx_id: int, description: str, amount: float):
+    def auto_link_and_update_balance(self, cursor: sqlite3.Cursor, user_id: int, tx_id: int, description: str, amount: float):
         """
         Attempts to match the transaction description to a debt or savings account,
         links it (if a debt account), and updates the account balance.
@@ -113,23 +113,23 @@ class TransactionETL:
         desc_lower = description.lower()
         
         # 1. Match against Debt Accounts
-        cursor.execute("SELECT id, account_name, institution, current_balance FROM debt_accounts")
+        cursor.execute("SELECT id, account_name, institution, current_balance FROM debt_accounts WHERE user_id = ?", (user_id,))
         debt_accounts = cursor.fetchall()
         for d_id, name, inst, current_bal in debt_accounts:
             # Match on account name or institution
             if (name and name.lower() in desc_lower) or (inst and inst.lower() in desc_lower):
-                cursor.execute("UPDATE transactions SET account_id = ? WHERE id = ?", (d_id, tx_id))
+                cursor.execute("UPDATE transactions SET account_id = ? WHERE id = ? AND user_id = ?", (d_id, tx_id, user_id))
                 # For debts: charges (negative amount) increase balance; payments (positive amount) decrease balance.
                 new_bal = max(0.0, current_bal - amount)
-                cursor.execute("UPDATE debt_accounts SET current_balance = ? WHERE id = ?", (new_bal, d_id))
+                cursor.execute("UPDATE debt_accounts SET current_balance = ? WHERE id = ? AND user_id = ?", (new_bal, d_id, user_id))
                 return
                 
         # 2. Match against Savings Accounts
-        cursor.execute("SELECT id, account_name, current_balance FROM savings_accounts")
+        cursor.execute("SELECT id, account_name, current_balance FROM savings_accounts WHERE user_id = ?", (user_id,))
         savings_accounts = cursor.fetchall()
         for s_id, name, current_bal in savings_accounts:
             if name and name.lower() in desc_lower:
                 # For savings: deposits (positive amount) increase balance; withdrawals (negative amount) decrease balance.
                 new_bal = max(0.0, current_bal + amount)
-                cursor.execute("UPDATE savings_accounts SET current_balance = ? WHERE id = ?", (new_bal, s_id))
+                cursor.execute("UPDATE savings_accounts SET current_balance = ? WHERE id = ? AND user_id = ?", (new_bal, s_id, user_id))
                 return

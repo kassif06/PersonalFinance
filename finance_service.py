@@ -2,8 +2,9 @@ import sqlite3
 from typing import Dict, Any, List
 
 class FinanceService:
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, user_id: int):
         self.db_path = db_path
+        self.user_id = user_id
 
     def _get_connection(self):
         import os
@@ -27,12 +28,12 @@ class FinanceService:
         return conn
 
     def get_monthly_income(self) -> float:
-        """Calculates total monthly income normalized across various frequencies."""
-        query = "SELECT amount, frequency FROM income_sources"
+        """Calculates total monthly income normalized across various frequencies for the user."""
+        query = "SELECT amount, frequency FROM income_sources WHERE user_id = ?"
         total_monthly_income = 0.0
         
         with self._get_connection() as conn:
-            rows = conn.execute(query).fetchall()
+            rows = conn.execute(query, (self.user_id,)).fetchall()
             
         for row in rows:
             amount = row['amount']
@@ -55,33 +56,33 @@ class FinanceService:
         return round(total_monthly_income, 2)
 
     def get_monthly_debt_obligations(self) -> float:
-        """Calculates combined monthly minimum debt obligations."""
-        query = "SELECT SUM(monthly_payment) as total FROM debt_accounts"
+        """Calculates combined monthly minimum debt obligations for the user."""
+        query = "SELECT SUM(monthly_payment) as total FROM debt_accounts WHERE user_id = ?"
         with self._get_connection() as conn:
-            row = conn.execute(query).fetchone()
+            row = conn.execute(query, (self.user_id,)).fetchone()
             return round(row['total'] or 0.0, 2)
 
     def get_monthly_savings_contributions(self) -> float:
-        """Calculates total monthly savings/investments objectives."""
-        query = "SELECT SUM(monthly_contribution) as total FROM savings_accounts"
+        """Calculates total monthly savings/investments objectives for the user."""
+        query = "SELECT SUM(monthly_contribution) as total FROM savings_accounts WHERE user_id = ?"
         with self._get_connection() as conn:
-            row = conn.execute(query).fetchone()
+            row = conn.execute(query, (self.user_id,)).fetchone()
             return round(row['total'] or 0.0, 2)
 
     def get_monthly_fixed_spending(self) -> float:
-        """Calculates total monthly fixed spending.
+        """Calculates total monthly fixed spending for the user.
         Note: Fixed spending includes housing, connectivity, utilities, insurances, and groceries.
         """
-        query = "SELECT SUM(monthly_amount) as total FROM fixed_spending"
+        query = "SELECT SUM(monthly_amount) as total FROM fixed_spending WHERE user_id = ?"
         with self._get_connection() as conn:
-            row = conn.execute(query).fetchone()
+            row = conn.execute(query, (self.user_id,)).fetchone()
             return round(row['total'] or 0.0, 2)
 
     def get_monthly_discretionary_spending(self) -> float:
-        """Calculates total monthly discretionary spending."""
-        query = "SELECT SUM(monthly_amount) as total FROM discretionary_spending"
+        """Calculates total monthly discretionary spending for the user."""
+        query = "SELECT SUM(monthly_amount) as total FROM discretionary_spending WHERE user_id = ?"
         with self._get_connection() as conn:
-            row = conn.execute(query).fetchone()
+            row = conn.execute(query, (self.user_id,)).fetchone()
             return round(row['total'] or 0.0, 2)
 
     def calculate_unified_cash_flow(self) -> Dict[str, float]:
@@ -97,7 +98,8 @@ class FinanceService:
         # (e.g. mortgage payments that are tracked both under fixed_spending and debt_accounts)
         with self._get_connection() as conn:
             linked_fixed_total_row = conn.execute(
-                "SELECT SUM(monthly_amount) as total FROM fixed_spending WHERE linked_debt_id IS NOT NULL"
+                "SELECT SUM(monthly_amount) as total FROM fixed_spending WHERE linked_debt_id IS NOT NULL AND user_id = ?",
+                (self.user_id,)
             ).fetchone()
             linked_fixed_total = linked_fixed_total_row['total'] or 0.0
             
@@ -120,10 +122,10 @@ class FinanceService:
         }
 
     def get_net_worth(self) -> float:
-        """Calculates current net worth: Total Savings - Total Debt."""
+        """Calculates current net worth: Total Savings - Total Debt for the user."""
         with self._get_connection() as conn:
-            savings_val = conn.execute("SELECT SUM(current_balance) FROM savings_accounts").fetchone()[0] or 0.0
-            debt_val = conn.execute("SELECT SUM(current_balance) FROM debt_accounts").fetchone()[0] or 0.0
+            savings_val = conn.execute("SELECT SUM(current_balance) FROM savings_accounts WHERE user_id = ?", (self.user_id,)).fetchone()[0] or 0.0
+            debt_val = conn.execute("SELECT SUM(current_balance) FROM debt_accounts WHERE user_id = ?", (self.user_id,)).fetchone()[0] or 0.0
         return round(savings_val - debt_val, 2)
 
     def get_growth_projection(self, account_name: str, years: int) -> List[Dict[str, Any]]:
@@ -132,9 +134,9 @@ class FinanceService:
         assuming monthly compounding interest:
         A = P(1 + r/n)^(nt) + PMT * [((1 + r/n)^(nt) - 1) / (r/n)]
         """
-        query = "SELECT current_balance, monthly_contribution, annual_yield FROM savings_accounts WHERE account_name = ?"
+        query = "SELECT current_balance, monthly_contribution, annual_yield FROM savings_accounts WHERE account_name = ? AND user_id = ?"
         with self._get_connection() as conn:
-            row = conn.execute(query, (account_name,)).fetchone()
+            row = conn.execute(query, (account_name, self.user_id)).fetchone()
             
         if not row:
             raise ValueError(f"Account '{account_name}' not found.")
@@ -166,7 +168,7 @@ class FinanceService:
             
         return projection
 
-    def get_actuals(self) -> Dict[str, float]:
+    def get_actuals(self, month: Optional[str] = None) -> Dict[str, float]:
         """
         Aggregates imported transactions to calculate actual monthly flow numbers.
         """
@@ -178,22 +180,35 @@ class FinanceService:
             "savings": 0.0
         }
         
+        fixed_cats = {'Housing', 'Connectivity', 'Utilities', 'Insurances', 'Groceries'}
+        disc_cats = {'Family Overseas', 'Dining', 'Shopping', 'Subscriptions'}
+        
         with self._get_connection() as conn:
-            # Sum manual actual spent for fixed and discretionary spending
-            fixed_val = conn.execute("SELECT SUM(actual_spent) FROM fixed_spending").fetchone()[0] or 0.0
-            disc_val = conn.execute("SELECT SUM(actual_spent) FROM discretionary_spending").fetchone()[0] or 0.0
-            actuals["fixed"] = fixed_val
-            actuals["discretionary"] = disc_val
+            query = "SELECT amount, category, account_id FROM transactions WHERE user_id = ?"
+            params = [self.user_id]
+            if month:
+                query += " AND SUBSTR(transaction_date, 1, 7) = ?"
+                params.append(month)
+                
+            rows = conn.execute(query, params).fetchall()
             
-            rows = conn.execute("SELECT amount, category, account_id FROM transactions").fetchall()
-            
+            # Fall back to manual values if no transactions exist and no month is specified
+            if not rows and not month:
+                fixed_val = conn.execute("SELECT SUM(actual_spent) FROM fixed_spending WHERE user_id = ?", (self.user_id,)).fetchone()[0] or 0.0
+                disc_val = conn.execute("SELECT SUM(actual_spent) FROM discretionary_spending WHERE user_id = ?", (self.user_id,)).fetchone()[0] or 0.0
+                actuals["fixed"] = fixed_val
+                actuals["discretionary"] = disc_val
+                actuals["income"] = self.get_monthly_income()
+                actuals["debt_payments"] = self.get_monthly_debt_obligations()
+                actuals["savings"] = self.get_monthly_savings_contributions()
+                return {k: round(v, 2) for k, v in actuals.items()}
+                
         for row in rows:
             amount = row['amount']
             cat = row['category']
             acc_id = row['account_id']
             
             if amount > 0:
-                # Positive transaction: Income, Debt Payment inflow, or Savings Deposit
                 if cat == 'Savings' or (cat and 'savings' in cat.lower()):
                     actuals["savings"] += amount
                 elif cat == 'Debt Payment' or (cat and 'debt' in cat.lower()) or acc_id is not None:
@@ -201,11 +216,16 @@ class FinanceService:
                 else:
                     actuals["income"] += amount
             else:
-                # Negative transaction: Spending outflow, or Savings Withdrawal
                 abs_amt = abs(amount)
                 if cat == 'Savings' or (cat and 'savings' in cat.lower()):
                     actuals["savings"] += abs_amt
                 elif cat == 'Debt Payment' or (cat and 'debt' in cat.lower()) or acc_id is not None:
                     actuals["debt_payments"] += abs_amt
+                elif cat in fixed_cats:
+                    actuals["fixed"] += abs_amt
+                elif cat in disc_cats:
+                    actuals["discretionary"] += abs_amt
+                else:
+                    actuals["discretionary"] += abs_amt
                     
         return {k: round(v, 2) for k, v in actuals.items()}

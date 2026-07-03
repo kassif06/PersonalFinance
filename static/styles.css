@@ -703,3 +703,83 @@ body {
     color: var(--red);
     font-size: 1.75rem;
 }
+
+/* Auth Screens */
+.login-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 40%),
+                #070a13;
+}
+
+.login-card {
+    background: rgba(22, 31, 48, 0.65);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 3rem 2.5rem;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    animation: modalSlideUp 0.4s ease;
+}
+
+.login-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.login-header i {
+    font-size: 2.5rem;
+    color: var(--primary);
+    filter: drop-shadow(0 0 10px var(--primary-glow));
+}
+
+.login-header h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.login-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.login-card .form-group {
+    margin-bottom: 0;
+}
+
+.login-footer {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+.login-footer a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}

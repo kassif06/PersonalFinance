@@ -17,7 +17,51 @@
 <body>
     <div class="glass-bg"></div>
     
-    <!-- Sidebar Navigation -->
+    <!-- Login and Registration Container -->
+    <div id="login-container" class="login-wrapper">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fa-solid fa-chart-line-subtraction"></i>
+                <h2>ApexFinance</h2>
+                <p class="subtitle text-muted" id="auth-subtitle">Log in to manage your personal finances securely</p>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleAuthSubmit(event, 'login')">
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" name="username" placeholder="Enter your username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100" style="justify-content: center; margin-top: 1rem;">Log In</button>
+            </form>
+
+            <!-- Register Form (hidden initially) -->
+            <form id="register-form" onsubmit="handleAuthSubmit(event, 'register')" class="hidden">
+                <div class="form-group">
+                    <label for="register-username">Username</label>
+                    <input type="text" id="register-username" name="username" placeholder="Choose a username" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" name="password" placeholder="Choose a password (min 4 chars)" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100" style="justify-content: center; margin-top: 1rem;">Register</button>
+            </form>
+
+            <div class="login-footer">
+                <span id="auth-toggle-msg">Don't have an account?</span>
+                <a href="#" id="auth-toggle-link" onclick="toggleAuthForm(event)">Register now</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Application Container -->
+    <div id="app-container" style="display: none;">
+        <!-- Sidebar Navigation -->
     <aside class="sidebar">
         <div class="brand">
             <i class="fa-solid fa-chart-line-subtraction brand-icon"></i>
@@ -41,11 +85,14 @@
             </button>
         </nav>
         <div class="user-profile">
-            <div class="avatar">U</div>
-            <div class="user-info">
-                <h4>Household Account</h4>
+            <div class="avatar" id="user-avatar">U</div>
+            <div class="user-info" style="flex-grow: 1;">
+                <h4 id="user-display-name">Household Account</h4>
                 <p>Personal Finance</p>
             </div>
+            <button class="action-btn" title="Logout" onclick="handleLogout()" style="color: var(--text-muted); font-size: 1.15rem; padding: 0.25rem; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
         </div>
     </aside>
 
@@ -57,13 +104,21 @@
                 <h1 id="page-title">Financial Dashboard</h1>
                 <p class="subtitle text-muted">Real-time net worth and consolidated monthly cash flow metrics.</p>
             </div>
-            <div class="quick-actions">
-                <button class="btn btn-primary" onclick="showModal('add-income-modal')">
-                    <i class="fa-solid fa-plus"></i> Add Income
-                </button>
-                <button class="btn btn-secondary" onclick="showModal('add-debt-modal')">
-                    <i class="fa-solid fa-plus"></i> Add Debt
-                </button>
+            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="dashboard-month-select" style="white-space: nowrap; margin-bottom: 0; font-size: 0.9rem; color: var(--text-muted); font-weight: 500;">View Month:</label>
+                    <select id="dashboard-month-select" style="background: rgba(22, 31, 48, 0.85); border: 1px solid var(--card-border); color: #fff; padding: 0.5rem 1rem; border-radius: 12px; font-family: 'Outfit'; font-weight: 500; outline: none; cursor: pointer; transition: var(--transition);" onchange="onMonthChange()">
+                        <option value="">All Time</option>
+                    </select>
+                </div>
+                <div class="quick-actions">
+                    <button class="btn btn-primary" onclick="showModal('add-income-modal')">
+                        <i class="fa-solid fa-plus"></i> Add Income
+                    </button>
+                    <button class="btn btn-secondary" onclick="showModal('add-debt-modal')">
+                        <i class="fa-solid fa-plus"></i> Add Debt
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -173,6 +228,22 @@
                             <tr><td colspan="5" class="text-center">Loading performance analysis...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Month-over-Month Historical Analysis Section -->
+            <div class="card glass-card mt-4">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                    <div>
+                        <h3>Historical Month-over-Month Analysis</h3>
+                        <p class="card-subtitle">Comparison of actual income, spending, and savings over the last 6 months.</p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="showProcessMonthModal()" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-calendar-check"></i> Process Month End
+                    </button>
+                </div>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="historicalChart"></canvas>
                 </div>
             </div>
 
@@ -898,6 +969,33 @@
             </form>
         </div>
     </div>
+
+    <!-- Modal: Process Month End -->
+    <div id="process-month-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('process-month-modal')">&times;</span>
+            <h3>Process Month End Rollover</h3>
+            <p class="subtitle text-muted mt-1" id="process-month-desc">Roll over your net remaining surplus cash into a savings account.</p>
+            <form id="process-month-form" onsubmit="handleProcessMonthSubmit(event)">
+                <div class="form-group">
+                    <label>Target Month</label>
+                    <input type="text" id="process-month-name" readonly style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: #fff;">
+                </div>
+                <div class="form-group">
+                    <label>Calculated Net Surplus ($)</label>
+                    <input type="number" id="process-month-surplus" readonly style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: #fff;" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Select Destination Savings Account</label>
+                    <select id="process-month-savings-select" required>
+                        <!-- Loaded dynamically -->
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-4">Process Rollover</button>
+            </form>
+        </div>
+    </div>
+    </div> <!-- Closing #app-container -->
 
     <!-- Javascript Actions File -->
     <script src="app.js"></script>
